@@ -1,29 +1,27 @@
 #include "table.h"
 
-static uint64_t* table;
+static tt::Entry* table;
 
-static constexpr int tableSize = 28;
-
-static constexpr int scoreSize = 16;
-static constexpr int scoreMask = (1 << scoreSize) - 1;
-
-static constexpr int depthSize = 8;
-static constexpr int depthMask = ((1 << depthSize) - 1) << scoreSize;
+static constexpr int tableSize = 27;
+static constexpr int keyMask = (1 << tableSize) - 1;
 
 void tt::init() {
-	table = new uint64_t[1 << tableSize]();
+	table = new Entry[1 << tableSize]();
 }
 
-void tt::set(uint64_t bitboard, int16_t score, int8_t depth) {
+void tt::set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth, uint8_t type) {
 	uint64_t h = tt::hash(bitboard);
-	table[h & ((1 << tableSize) - 1)] = (depth << 16) | score;
+	auto& entry = table[h & keyMask];
+
+	entry.key = h;
+	entry.bestMove = bestMove;
+	entry.score = score;
+	entry.depth = depth;
+	entry.type = type;
 }
 
-// return pair<score, depth>
-std::pair<int16_t, uint8_t> tt::get(uint64_t bitboard) {
-	uint64_t h = hash(bitboard);
-	uint64_t entry = table[h & ((1 << tableSize) - 1)];
-	return std::make_pair((int16_t)(entry & scoreMask), (uint8_t)(entry & depthMask));
+tt::Entry& tt::get(uint64_t bitboard) {
+	return table[hash(bitboard) & keyMask];
 }
 
 uint64_t tt::hash(uint64_t bitboard) {

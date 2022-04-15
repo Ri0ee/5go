@@ -1,4 +1,4 @@
-#include "imgui.h"
+﻿#include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
@@ -7,11 +7,15 @@
 #include <string>
 #include <list>
 #include <thread>
+#include <array>
 
 #include <GLFW/glfw3.h>
 
+#include "eval.h"
 #include "board.h"
 #include "minimax.h"
+#include "table.h"
+#include "stats.h"
 
 struct Action {
     std::string desc;
@@ -23,6 +27,7 @@ struct State {
 
     bool ai = false;
     bool thinking = false;
+    bool aiFinished = false;
     bool stale = false;
     bool rotate = false;
 
@@ -47,8 +52,8 @@ void resetGameState(State& state) {
     state.stale = false;
     state.rotate = false;
 
-    state.side = 0;
-    state.currentSide = 0;
+    state.side = 0; // 1, 2
+    state.currentSide = 0; // 1, 2
     state.winner = 0;
 
     state.board = {};
@@ -56,8 +61,7 @@ void resetGameState(State& state) {
 }
 
 void switchSide(State& state) {
-    assert(state.currentSide != 0);
-    state.currentSide = -state.currentSide;
+    state.currentSide = state.currentSide == 1 ? 2 : 1;
 }
 
 void check(State& state) {
@@ -79,23 +83,23 @@ void menuWindow(State& state) {
         if (state.ai) {
             if (ImGui::Button("Play first")) {
                 resetGameState(state);
-                state.side = -1;
-                state.currentSide = -1;
+                state.side = 1;
+                state.currentSide = 1;
                 state.showGameWindow = true;
             }
 
             if (ImGui::Button("Play second")) {
                 resetGameState(state);
-                state.side = 1;
-                state.currentSide = -1;
+                state.side = 2;
+                state.currentSide = 1;
                 state.showGameWindow = true;
             }
         }
         else {
             if (ImGui::Button("Play")) {
                 resetGameState(state);
-                state.side = -1;
-                state.currentSide = -1;
+                state.side = 1;
+                state.currentSide = 1;
                 state.showGameWindow = true;
             }
         }
@@ -120,46 +124,21 @@ void postMove(State& state) {
     switchSide(state);
 }
 
-void rotateButton(State& state, int rotation) {
-    state.board.rotate(rotation);
-    check(state);
+void rotateButton(State& state, int qidx, int dir) {
+    state.board.rotate(qidx, dir);
     state.rotate = false;
-
-    switch (rotation) {
-    case 0: state.history.push_back({ "Q1 C C W" }); break;
-    case 1: state.history.push_back({ "Q1 C W" }); break;
-    case 2: state.history.push_back({ "Q2 C C W" }); break;
-    case 3: state.history.push_back({ "Q2 C W" }); break;
-    case 4: state.history.push_back({ "Q3 C C W" }); break;
-    case 5: state.history.push_back({ "Q3 C W" }); break;
-    case 6: state.history.push_back({ "Q4 C C W" }); break;
-    case 7: state.history.push_back({ "Q5 C W" }); break;
-    default: state.history.push_back({ "Unknown rotation, should not happen" });
-    }
-    
+    check(state);
     postMove(state);
 }
 
 void aiMove(State& state) {
-    std::cout << "aiMove\n";
-    auto moves = state.board.getMoves();
-    while (!moves.empty()) {
-        auto move = moves.top();
-        moves.pop();
-        std::cout << std::format("pos: {} rotation: {} score: {}\n", move.second.first, move.second.second, move.first);
-    }
-    std::cout << "/aiMove\n";
-
     state.thinking = true;
-    auto bestMove = mm::bestMove(state.board, 5);
+    state.aiFinished = false;
+    state.board = mm::bestMove(state.board, state.currentSide);
+    state.board.debugPrint();
     state.thinking = false;
-
-    state.board.put(bestMove.first);
-    state.history.push_back({ std::format("M{}", bestMove.first) });
-    check(state);
-    state.rotate = !state.stale && state.winner == 0;
-    if (state.rotate)
-        rotateButton(state, bestMove.second);
+    state.aiFinished = true;
+    switchSide(state);
 }
 
 void gameWindow(State& state) {
@@ -167,66 +146,63 @@ void gameWindow(State& state) {
 
     ImGui::SetItemAllowOverlap();
     ImGui::BeginGroup();
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 50);
 
-    for (uint8_t i = 1; i <= 36; i++) {
-        auto owner = state.board.get(36 - i);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 50);
-
-        if (owner == -1) { // blue
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(20, 60, 220, 255));
-
-            ImGui::Button(std::to_string(37 - i).c_str(), { 50, 50 });
-
-            ImGui::PopStyleColor();
-        }
-        else if (owner == 1) { // red
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(220, 20, 60, 255));
-
-            ImGui::Button(std::to_string(37 - i).c_str(), { 50, 50 });
-
-            ImGui::PopStyleColor();
-        }
-        else { // none
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(100, 100, 100, 255));
-
-            assert(state.currentSide != 0);
-
-            if (state.currentSide == -1) { // blue
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(20, 60, 220, 255));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(20, 60, 220, 255));
+    auto board = state.board.toArray();
+    int marbleIdx = 1;
+    for (auto& row : board) {
+        for (auto& cell : row) {
+            if (cell == 1) { // blue
+                ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(20, 60, 220, 255));
+                ImGui::Button(std::to_string(marbleIdx - 1).c_str(), { 50, 50 });
+                ImGui::PopStyleColor();
             }
-            else if (state.currentSide == 1) { // red
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(220, 20, 60, 255));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(220, 20, 60, 255));
+            else if (cell == 2) { // red
+                ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(220, 20, 60, 255));
+                ImGui::Button(std::to_string(marbleIdx - 1).c_str(), { 50, 50 });
+                ImGui::PopStyleColor();
             }
+            else { // none
+                ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(100, 100, 100, 255));
 
-            if (ImGui::Button(std::to_string(37 - i).c_str(), { 50, 50 })) {
-                if (!state.stale && state.winner == 0) {
-                    state.board.put(36 - i);
-                    state.history.push_back({ std::format("M{}", 37 - i) });
-                    check(state);
-                    state.rotate = true && !state.stale && state.winner == 0;
+                if (state.currentSide == 1) { // blue
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(20, 60, 220, 255));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(20, 60, 220, 255));
                 }
+                else if (state.currentSide == 2) { // red
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(220, 20, 60, 255));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(220, 20, 60, 255));
+                }
+
+                if (ImGui::Button(std::to_string(marbleIdx - 1).c_str(), { 50, 50 })) {
+                    if (!state.stale && state.winner == 0) {
+                        cell = state.currentSide;
+                        state.board.fromArray(board);
+                        state.history.push_back({ std::format("M{}", marbleIdx) });
+                        check(state);
+                        state.rotate = true && !state.stale && state.winner == 0;
+                    }
+                }
+
+                ImGui::PopStyleColor(3);
             }
 
-            ImGui::PopStyleColor(3);
+            if (marbleIdx % 6)
+                ImGui::SameLine();
+
+            if (marbleIdx % 6 == 3) {
+                ImGui::Dummy({ 20, 0 });
+                ImGui::SameLine();
+            }
+
+            if (marbleIdx == 18)
+                ImGui::Dummy({ 0, 20 });
+
+            marbleIdx++;
         }
-
-        ImGui::PopStyleVar();
-
-        if (i % 6)
-            ImGui::SameLine();
-
-        if (i % 6 == 3) {
-            ImGui::Dummy({ 20, 0 });
-            ImGui::SameLine();
-        }
-
-        if (i == 18)
-            ImGui::Dummy({ 0, 20 });
     }
 
+    ImGui::PopStyleVar();
     ImGui::EndGroup();
 
     if (state.rotate) {
@@ -235,53 +211,50 @@ void gameWindow(State& state) {
         ImGui::BeginChild(1, ImGui::GetItemRectSize(), false, 0);
 
         ImGui::Dummy({ 0, 66 });
-        if (ImGui::ArrowButton("q0left", ImGuiDir_Left)) {
-            rotateButton(state, 0);
-        }
-
+        if (ImGui::ArrowButton("q0left", ImGuiDir_Left)) rotateButton(state, 0, 0);
         ImGui::SameLine();
         ImGui::Dummy({ 111, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q0right", ImGuiDir_Right)) rotateButton(state, 1);
+        if (ImGui::ArrowButton("q0right", ImGuiDir_Right)) rotateButton(state, 0, 1);
 
         ImGui::SameLine();
         ImGui::Dummy({ 22, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q1left", ImGuiDir_Left)) rotateButton(state, 2);
+        if (ImGui::ArrowButton("q1left", ImGuiDir_Left)) rotateButton(state, 1, 0);
 
         ImGui::SameLine();
         ImGui::Dummy({ 111, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q1right", ImGuiDir_Right)) rotateButton(state, 3);
+        if (ImGui::ArrowButton("q1right", ImGuiDir_Right)) rotateButton(state, 1, 1);
 
         ImGui::Dummy({ 0, 158 });
-        if (ImGui::ArrowButton("q2left", ImGuiDir_Left)) rotateButton(state, 4);
+        if (ImGui::ArrowButton("q2left", ImGuiDir_Left)) rotateButton(state, 2, 0);
 
         ImGui::SameLine();
         ImGui::Dummy({ 111, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q2right", ImGuiDir_Right)) rotateButton(state, 5);
+        if (ImGui::ArrowButton("q2right", ImGuiDir_Right)) rotateButton(state, 2, 1);
 
         ImGui::SameLine();
         ImGui::Dummy({ 22, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q3left", ImGuiDir_Left)) rotateButton(state, 6);
+        if (ImGui::ArrowButton("q3left", ImGuiDir_Left)) rotateButton(state, 3, 0);
 
         ImGui::SameLine();
         ImGui::Dummy({ 111, 0 });
         ImGui::SameLine();
 
-        if (ImGui::ArrowButton("q3right", ImGuiDir_Right)) rotateButton(state, 7);
+        if (ImGui::ArrowButton("q3right", ImGuiDir_Right)) rotateButton(state, 3, 1);
 
         ImGui::EndChild();
     }
 
-    if (state.ai && state.side != state.currentSide && !state.thinking) {
+    if (state.ai && state.side != state.currentSide && !state.thinking && state.winner == 0) {
         state.aiThread = std::thread([&]() {
             aiMove(state);
         });
@@ -293,8 +266,10 @@ void gameWindow(State& state) {
         ImGui::BeginChild(1, ImGui::GetItemRectSize(), false, 0);
         ImGui::EndChild();
     }
-    else if (state.aiThread.joinable()) {
+
+    if (state.aiFinished) {
         state.aiThread.join();
+        state.aiFinished = false;
     }
 
     ImGui::End();
@@ -303,18 +278,23 @@ void gameWindow(State& state) {
 void gameStatsWindow(State& state) {
     ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::BeginListBox("##history", { 200, 450 });
+    ImGui::Text("alpha cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::alphaCutoffs).c_str());
+    ImGui::Text("beta cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::betaCutoffs).c_str());
+    ImGui::Text("TT hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
+    ImGui::Text("Board eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(ev::eval(state.board.bitboard)).c_str());
 
-    for (auto& action : state.history) {
-        ImGui::BulletText(action.desc.c_str());
+    if (ImGui::BeginListBox("##history", { 200, 450 })) {
+        for (auto& action : state.history) {
+            ImGui::BulletText(action.desc.c_str());
+        }
+
+        if (state.winner != 0) {
+            std::string text = std::format("{} has won", state.winner == 1 ? "blue" : "red");
+            ImGui::BulletText(text.c_str());
+        }
+
+        ImGui::EndListBox();
     }
-
-    if (state.winner != 0) {
-        std::string text = std::format("{} has won", state.winner == -1 ? "blue" : "red");
-        ImGui::BulletText(text.c_str());
-    }
-
-    ImGui::EndListBox();
 
     ImGui::End();
 }
@@ -345,6 +325,16 @@ int main(int, char**) {
 
     static State state;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    tt::init();
+
+    //std::array<std::array<int, 6>, 6> board{};
+    //board[0] = { 1, 2, 2, 1, 1, 1 };
+    //board[1] = { 2, 1, 2, 1, 2, 2 };
+    //board[2] = { 1, 1, 1, 2, 2, 1 };
+    //board[3] = { 1, 1, 2, 2, 2, 2 };
+    //board[4] = { 2, 1, 2, 1, 1, 2 };
+    //board[5] = { 2, 1, 1, 2, 2, 1 };
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();

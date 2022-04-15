@@ -4,34 +4,19 @@
 #include <iostream>
 #include <format>
 #include <array>
+#include <unordered_set>
+#include <queue>
 #include <immintrin.h>
 
 namespace bb {
-	static auto maskGen = [](const int idx) constexpr -> uint64_t {
-		return (uint64_t)0x1 << idx;
-	};
-
-	static constexpr uint64_t mask[36] = {
-		maskGen(0),  maskGen(1),  maskGen(2),  maskGen(3),  maskGen(4),  maskGen(5),
-		maskGen(6),  maskGen(7),  maskGen(8),  maskGen(9),  maskGen(10), maskGen(11),
-		maskGen(12), maskGen(13), maskGen(14), maskGen(15), maskGen(16), maskGen(17),
-		maskGen(18), maskGen(19), maskGen(20), maskGen(21), maskGen(22), maskGen(23),
-		maskGen(24), maskGen(25), maskGen(26), maskGen(27), maskGen(28), maskGen(29),
-		maskGen(30), maskGen(31), maskGen(32), maskGen(33), maskGen(34), maskGen(35),
-	};
-
-	// inverted quadrant masks
-	static constexpr uint64_t invqmask[4] = {
-		0x1C71FFFFF, 0xE38E3FFFF,
-		0xFFFFC71C7, 0xFFFFF8E38
-	};
-
-	// rotation mask
-	static constexpr uint64_t rmask[36] = {
-		0x800000000,       0x400000000,       0x200000000,       0x20000000,       0x10000000,       0x8000000,       0x800000,       0x400000,       0x200000,
-		0x800000000 >>  3, 0x400000000 >>  3, 0x200000000 >>  3, 0x20000000 >>  3, 0x10000000 >>  3, 0x8000000  >> 3, 0x800000 >>  3, 0x400000 >>  3, 0x200000 >> 3,
-		0x800000000 >> 18, 0x400000000 >> 18, 0x200000000 >> 18, 0x20000000 >> 18, 0x10000000 >> 18, 0x8000000 >> 18, 0x800000 >> 18, 0x400000 >> 18, 0x200000 >> 18,
-		0x800000000 >> 21, 0x400000000 >> 21, 0x200000000 >> 21, 0x20000000 >> 21, 0x10000000 >> 21, 0x8000000 >> 21, 0x800000 >> 21, 0x400000 >> 21, 0x200000 >> 21
+	constexpr auto pow = [](uint64_t a, uint64_t b) {
+		uint64_t p = 1;
+		while (b) {
+			if (b & 1) p *= a;
+			b >>= 1;
+			a *= a;
+		}
+		return p;
 	};
 
 	static constexpr auto packTable = [] {
@@ -42,7 +27,7 @@ namespace bb {
 
 			for (int j = 0; j < 9; j++)
 				if (i & 1 << j)
-					pv += j * j * j;
+					pv += (uint16_t)pow(3, j);
 
 			pack[i] = pv;
 		}
@@ -51,14 +36,14 @@ namespace bb {
 	} ();
 
 	static constexpr auto unpackTable = [] {
-		std::array<std::array<uint16_t, 2>, 19683> unpack{};
+		std::array<std::array<uint16_t, 2>, pow(3, 9)> unpack{};
 
-		for (int v = 0; v < 19683; v++) {
+		for (int v = 0; v < pow(3, 9); v++) {
 			auto vv = v;
 			uint16_t p0 = 0, p1 = 0;
 
 			for (int i = 0; i < 9; i++) {
-				const auto c = vv % 3;
+				auto c = vv % 3;
 				if (c == 1)
 					p0 += 1 << i;
 				else if (c == 2)
@@ -66,19 +51,35 @@ namespace bb {
 				vv /= 3;
 			}
 
-			unpack[v] = std::array<uint16_t, 2>{ p0, p1 };
+			unpack[v] = { p0, p1 };
 		}
 
 		return unpack;
 	} ();
 
-	void printBitboard(uint64_t bitboard);
-	uint64_t set(uint64_t bitboard, uint8_t pos);
-	uint64_t unset(uint64_t bitboard, uint8_t pos);
- 	uint64_t get(uint64_t bitboard, uint8_t pos);
-	uint64_t rotate90CW(uint64_t bitboard, uint8_t qidx);
-	uint64_t rotate90CCW(uint64_t bitboard, uint8_t qidx);
-	bool won(uint64_t bitboard);
+	constexpr auto qbit = [](int x, int y) -> int {
+		return 1 << (3 * x + y);
+	};
+
+	static constexpr auto rotationTable = [] {
+		std::array<std::array<uint16_t, 2>, 512> rotations{};
+
+		for (int v = 0; v < 512; v++) {
+			uint16_t left = 0, right = 0;
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					if (v & qbit(x, y)) {
+						left |= qbit(2 - y, x);
+						right |= qbit(y, 2 - x);
+					}
+				}
+			}
+
+			rotations[v] = { left, right };
+		}
+		
+		return rotations;
+	} ();
 
 	uint64_t quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3);
 	uint16_t quadrant(uint64_t bitboard, int q);
@@ -86,5 +87,13 @@ namespace bb {
 	uint64_t pack(uint64_t side0, uint64_t side1);
 	uint16_t unpack(uint16_t state, int s);
 	uint64_t unpack(uint64_t bitboard, int s);
-	uint8_t count_stones(uint64_t bitboard);
+	uint16_t rotate(uint16_t quadrant, int dir);
+	
+	uint64_t flipSides(uint64_t bitboard);
+
+	uint8_t count(uint64_t bitboard);
+	uint8_t count(uint64_t p0, uint64_t p1);
+
+	std::unordered_set<uint64_t> advances(uint64_t packedBitboard);
+	std::unordered_set<uint64_t> advances(uint64_t p0, uint64_t p1);
 }

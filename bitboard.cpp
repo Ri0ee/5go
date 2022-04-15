@@ -1,139 +1,276 @@
 #include "bitboard.h"
 
-void bb::printBitboard(uint64_t bitboard) {
-	std::cout << std::format("{:06b}\n", (bitboard & 0xFC0000000) >> 30);
-	std::cout << std::format("{:06b}\n", (bitboard & 0x3F000000) >> 24);
-	std::cout << std::format("{:06b}\n", (bitboard & 0xFC0000) >> 18);
-	std::cout << std::format("{:06b}\n", (bitboard & 0x3F000) >> 12);
-	std::cout << std::format("{:06b}\n", (bitboard & 0xFC0) >> 6);
-	std::cout << std::format("{:06b}\n", (bitboard & 0x3F));
-}
-
-uint64_t bb::set(uint64_t bitboard, uint8_t pos) {
-	return bitboard | bb::mask[pos];
-}
-
-uint64_t bb::unset(uint64_t bitboard, uint8_t pos) {
-	return bitboard & ~bb::mask[pos];
-}
-
-uint64_t bb::get(uint64_t bitboard, uint8_t pos) {
-	return bitboard & bb::mask[pos];
-}
-
-uint64_t bb::rotate90CW(uint64_t bitboard, uint8_t qidx) {
-	uint64_t tBitboard = bitboard & bb::invqmask[qidx];
-	uint64_t k = qidx * 9;
-
-	tBitboard |= (bitboard & bb::rmask[k + 0]) >> 2;
-	tBitboard |= (bitboard & bb::rmask[k + 1]) >> 7;
-	tBitboard |= (bitboard & bb::rmask[k + 2]) >> 12;
-
-	tBitboard |= (bitboard & bb::rmask[k + 3]) << 5;
-	tBitboard |= (bitboard & bb::rmask[k + 4]);
-	tBitboard |= (bitboard & bb::rmask[k + 5]) >> 5;
-
-	tBitboard |= (bitboard & bb::rmask[k + 6]) << 12;
-	tBitboard |= (bitboard & bb::rmask[k + 7]) << 7;
-	tBitboard |= (bitboard & bb::rmask[k + 8]) << 2;
-
-	return tBitboard;
-}
-
-uint64_t bb::rotate90CCW(uint64_t bitboard, uint8_t qidx) {
-	uint64_t tBitboard = bitboard & bb::invqmask[qidx];
-	uint64_t k = qidx * 9;
-
-	tBitboard |= (bitboard & bb::rmask[k + 0]) >> 12;
-	tBitboard |= (bitboard & bb::rmask[k + 1]) >> 5;
-	tBitboard |= (bitboard & bb::rmask[k + 2]) << 2;
-
-	tBitboard |= (bitboard & bb::rmask[k + 3]) >> 7;
-	tBitboard |= (bitboard & bb::rmask[k + 4]);
-	tBitboard |= (bitboard & bb::rmask[k + 5]) << 7;
-
-	tBitboard |= (bitboard & bb::rmask[k + 6]) >> 2;
-	tBitboard |= (bitboard & bb::rmask[k + 7]) << 5;
-	tBitboard |= (bitboard & bb::rmask[k + 8]) << 12;
-
-	return tBitboard;
-}
-
-bool bb::won(uint64_t bitboard) {
-	uint8_t leftHorizontal =
-		((bitboard & 0xFC0000000) >> 30) &
-		((bitboard & 0x03F000000) >> 24) &
-		((bitboard & 0x000FC0000) >> 18) &
-		((bitboard & 0x00003F000) >> 12) &
-		((bitboard & 0x000000FC0) >>  6);
-	if (leftHorizontal > 0) return true;
-
-	uint8_t rightHorizontal = 
-		((bitboard & 0x03F000000) >> 24) &
-		((bitboard & 0x000FC0000) >> 18) &
-		((bitboard & 0x00003F000) >> 12) &
-		((bitboard & 0x000000FC0) >>  6) &
-		 (bitboard & 0x00000003F);
-	if (rightHorizontal > 0) return true;
-
-	uint64_t highVertical =
-		 (bitboard & 0x820820820) &
-		((bitboard & 0x410410410) << 1) &
-		((bitboard & 0x208208208) << 2) &
-		((bitboard & 0x104104104) << 3) &
-		((bitboard & 0x082082082) << 4);
-	if (highVertical > 0) return true;
-
-	uint64_t lowVertical =
-		 (bitboard & 0x410410410) &
-		((bitboard & 0x208208208) << 1) &
-		((bitboard & 0x104104104) << 2) &
-		((bitboard & 0x082082082) << 3) &
-		((bitboard & 0x041041041) << 4);
-	if (lowVertical > 0) return true;
-
-	if ((bitboard & 0x810204080) == 0x810204080) return true;
-	if ((bitboard & 0x408102040) == 0x408102040) return true;
-	if ((bitboard & 0x020408102) == 0x020408102) return true;
-	if ((bitboard & 0x010204081) == 0x010204081) return true;
-	if ((bitboard & 0x042108400) == 0x042108400) return true;
-	if ((bitboard & 0x084210800) == 0x084210800) return true;
-	if ((bitboard & 0x001084210) == 0x001084210) return true;
-	if ((bitboard & 0x002108420) == 0x002108420) return true;
-
-	return false;
-}
-
-static inline uint64_t bb::quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3) {
+uint64_t bb::quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3) {
 	return q0 | (uint64_t)q1 << 16 | (uint64_t)q2 << 32 | (uint64_t)q3 << 48;
 }
 
-static inline uint16_t bb::pack(uint16_t side0, uint16_t side1) {
-	return bb::packTable[side0] + 2 * bb::packTable[side1];
+uint16_t bb::pack(uint16_t p0, uint16_t p1) {
+	return bb::packTable[p0] + 2 * bb::packTable[p1];
 }
 
-static inline uint16_t bb::quadrant(uint64_t bitboard, int q) {
+uint16_t bb::quadrant(uint64_t bitboard, int q) {
 	return (bitboard >> 16 * q) & 0xffff;
 }
 
-static inline uint64_t bb::pack(uint64_t side0, uint64_t side1) {
-	return bb::quadrants(bb::pack(bb::quadrant(side0, 0), bb::quadrant(side1, 0)),
-		bb::pack(bb::quadrant(side0, 1), bb::quadrant(side1, 1)),
-		bb::pack(bb::quadrant(side0, 2), bb::quadrant(side1, 2)),
-		bb::pack(bb::quadrant(side0, 3), bb::quadrant(side1, 3)));
+uint64_t bb::pack(uint64_t p0, uint64_t p1) {
+	return bb::quadrants(bb::pack(bb::quadrant(p0, 0), bb::quadrant(p1, 0)),
+						 bb::pack(bb::quadrant(p0, 1), bb::quadrant(p1, 1)),
+						 bb::pack(bb::quadrant(p0, 2), bb::quadrant(p1, 2)),
+						 bb::pack(bb::quadrant(p0, 3), bb::quadrant(p1, 3)));
 }
 
-static inline uint16_t bb::unpack(uint16_t state, int s) {
-	return bb::unpackTable[state][s];
+uint16_t bb::unpack(uint16_t bitboard, int s) {
+	return bb::unpackTable[bitboard][s];
 }
 
-static inline uint64_t bb::unpack(uint64_t bitboard, int s) {
+uint64_t bb::unpack(uint64_t bitboard, int s) {
 	return bb::quadrants(bb::unpack(bb::quadrant(bitboard, 0), s),
-		bb::unpack(bb::quadrant(bitboard, 1), s),
-		bb::unpack(bb::quadrant(bitboard, 2), s),
-		bb::unpack(bb::quadrant(bitboard, 3), s));
+						 bb::unpack(bb::quadrant(bitboard, 1), s),
+						 bb::unpack(bb::quadrant(bitboard, 2), s),
+						 bb::unpack(bb::quadrant(bitboard, 3), s));
 }
 
-static inline uint8_t bb::count_stones(uint64_t bitboard) {
+uint8_t bb::count(uint64_t bitboard) {
 	return (uint8_t)__popcnt64(bb::unpack(bitboard, 0) | bb::unpack(bitboard, 1));
 }
+
+uint8_t bb::count(uint64_t p0, uint64_t p1) {
+	return (uint8_t)__popcnt64(p0 | p1);
+}
+
+uint64_t bb::flipSides(uint64_t bitboard) {
+	uint64_t p0 = bb::unpack(bitboard, 0);
+	uint64_t p1 = bb::unpack(bitboard, 1);
+	return bb::pack(p1, p0);
+}
+
+uint16_t bb::rotate(uint16_t quadrant, int dir) {
+	return bb::rotationTable[quadrant][dir];
+}
+
+std::unordered_set<uint64_t> bb::advances(uint64_t packedBitboard) {
+	std::unordered_set<uint64_t> moves;
+
+	uint64_t p0 = bb::unpack(packedBitboard, 0);
+	uint64_t p1 = bb::unpack(packedBitboard, 1);
+	uint64_t moveMask = (p0 | p1) ^ 0x01ff01ff01ff01ff;
+	uint64_t moveCnt = __popcnt64(moveMask);
+
+	for (int i = 0; i < moveCnt; i++) {
+		uint64_t move = (uint64_t)0x1 << _tzcnt_u64(moveMask);
+		uint64_t p0advance = p0 | move;
+		for (int r = 0; r < 2; r++) {
+			uint64_t advanceP0RotQ1 = bb::quadrants(
+				bb::rotate(bb::quadrant(p0advance, 0), r),
+				bb::quadrant(p0advance, 1),
+				bb::quadrant(p0advance, 2),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ2 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::rotate(bb::quadrant(p0advance, 1), r),
+				bb::quadrant(p0advance, 2),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ3 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::quadrant(p0advance, 1),
+				bb::rotate(bb::quadrant(p0advance, 2), r),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ4 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::quadrant(p0advance, 1),
+				bb::quadrant(p0advance, 2),
+				bb::rotate(bb::quadrant(p0advance, 3), r));
+
+			uint64_t advanceP1RotQ1 = bb::quadrants(
+				bb::rotate(bb::quadrant(p1, 0), r),
+				bb::quadrant(p1, 1),
+				bb::quadrant(p1, 2),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ2 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::rotate(bb::quadrant(p1, 1), r),
+				bb::quadrant(p1, 2),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ3 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::quadrant(p1, 1),
+				bb::rotate(bb::quadrant(p1, 2), r),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ4 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::quadrant(p1, 1),
+				bb::quadrant(p1, 2),
+				bb::rotate(bb::quadrant(p1, 3), r));
+
+			uint64_t packedRotationQ1 = bb::pack(advanceP0RotQ1, advanceP1RotQ1);
+			uint64_t packedRotationQ2 = bb::pack(advanceP0RotQ2, advanceP1RotQ2);
+			uint64_t packedRotationQ3 = bb::pack(advanceP0RotQ3, advanceP1RotQ3);
+			uint64_t packedRotationQ4 = bb::pack(advanceP0RotQ4, advanceP1RotQ4);
+
+			moves.insert(packedRotationQ1);
+			moves.insert(packedRotationQ2);
+			moves.insert(packedRotationQ3);
+			moves.insert(packedRotationQ4);
+		}
+
+		moveMask ^= move;
+	}
+
+	return moves;
+}
+
+std::unordered_set<uint64_t> bb::advances(uint64_t p0, uint64_t p1) {
+	std::unordered_set<uint64_t> moves;
+
+	uint64_t moveMask = (p0 | p1) ^ 0x01ff01ff01ff01ff;
+	uint64_t moveCnt = __popcnt64(moveMask);
+
+	for (int i = 0; i < moveCnt; i++) {
+		uint64_t move = (uint64_t)0x1 << _tzcnt_u64(moveMask);
+		uint64_t p0advance = p0 | move;
+		for (int r = 0; r < 2; r++) {
+			uint64_t advanceP0RotQ1 = bb::quadrants(
+				bb::rotate(bb::quadrant(p0advance, 0), r),
+				bb::quadrant(p0advance, 1),
+				bb::quadrant(p0advance, 2),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ2 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::rotate(bb::quadrant(p0advance, 1), r),
+				bb::quadrant(p0advance, 2),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ3 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::quadrant(p0advance, 1),
+				bb::rotate(bb::quadrant(p0advance, 2), r),
+				bb::quadrant(p0advance, 3));
+
+			uint64_t advanceP0RotQ4 = bb::quadrants(
+				bb::quadrant(p0advance, 0),
+				bb::quadrant(p0advance, 1),
+				bb::quadrant(p0advance, 2),
+				bb::rotate(bb::quadrant(p0advance, 3), r));
+
+			uint64_t advanceP1RotQ1 = bb::quadrants(
+				bb::rotate(bb::quadrant(p1, 0), r),
+				bb::quadrant(p1, 1),
+				bb::quadrant(p1, 2),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ2 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::rotate(bb::quadrant(p1, 1), r),
+				bb::quadrant(p1, 2),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ3 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::quadrant(p1, 1),
+				bb::rotate(bb::quadrant(p1, 2), r),
+				bb::quadrant(p1, 3));
+
+			uint64_t advanceP1RotQ4 = bb::quadrants(
+				bb::quadrant(p1, 0),
+				bb::quadrant(p1, 1),
+				bb::quadrant(p1, 2),
+				bb::rotate(bb::quadrant(p1, 3), r));
+
+			uint64_t packedRotationQ1 = bb::pack(advanceP0RotQ1, advanceP1RotQ1);
+			uint64_t packedRotationQ2 = bb::pack(advanceP0RotQ2, advanceP1RotQ2);
+			uint64_t packedRotationQ3 = bb::pack(advanceP0RotQ3, advanceP1RotQ3);
+			uint64_t packedRotationQ4 = bb::pack(advanceP0RotQ4, advanceP1RotQ4);
+
+			moves.insert(packedRotationQ1);
+			moves.insert(packedRotationQ2);
+			moves.insert(packedRotationQ3);
+			moves.insert(packedRotationQ4);
+		}
+
+		moveMask ^= move;
+	}
+
+	return moves;
+}
+//
+//std::priority_queue<std::pair<int16_t,  bb::advances(uint64_t p0, uint64_t p1) {
+//	std::unordered_set<uint64_t> moves;
+//
+//	uint64_t moveMask = (p0 | p1) ^ 0x01ff01ff01ff01ff;
+//	uint64_t moveCnt = __popcnt64(moveMask);
+//
+//	for (int i = 0; i < moveCnt; i++) {
+//		uint64_t move = (uint64_t)0x1 << _tzcnt_u64(moveMask);
+//		uint64_t p0advance = p0 | move;
+//		for (int r = 0; r < 2; r++) {
+//			uint64_t advanceP0RotQ1 = bb::quadrants(
+//				bb::rotate(bb::quadrant(p0advance, 0), r),
+//				bb::quadrant(p0advance, 1),
+//				bb::quadrant(p0advance, 2),
+//				bb::quadrant(p0advance, 3));
+//
+//			uint64_t advanceP0RotQ2 = bb::quadrants(
+//				bb::quadrant(p0advance, 0),
+//				bb::rotate(bb::quadrant(p0advance, 1), r),
+//				bb::quadrant(p0advance, 2),
+//				bb::quadrant(p0advance, 3));
+//
+//			uint64_t advanceP0RotQ3 = bb::quadrants(
+//				bb::quadrant(p0advance, 0),
+//				bb::quadrant(p0advance, 1),
+//				bb::rotate(bb::quadrant(p0advance, 2), r),
+//				bb::quadrant(p0advance, 3));
+//
+//			uint64_t advanceP0RotQ4 = bb::quadrants(
+//				bb::quadrant(p0advance, 0),
+//				bb::quadrant(p0advance, 1),
+//				bb::quadrant(p0advance, 2),
+//				bb::rotate(bb::quadrant(p0advance, 3), r));
+//
+//			uint64_t advanceP1RotQ1 = bb::quadrants(
+//				bb::rotate(bb::quadrant(p1, 0), r),
+//				bb::quadrant(p1, 1),
+//				bb::quadrant(p1, 2),
+//				bb::quadrant(p1, 3));
+//
+//			uint64_t advanceP1RotQ2 = bb::quadrants(
+//				bb::quadrant(p1, 0),
+//				bb::rotate(bb::quadrant(p1, 1), r),
+//				bb::quadrant(p1, 2),
+//				bb::quadrant(p1, 3));
+//
+//			uint64_t advanceP1RotQ3 = bb::quadrants(
+//				bb::quadrant(p1, 0),
+//				bb::quadrant(p1, 1),
+//				bb::rotate(bb::quadrant(p1, 2), r),
+//				bb::quadrant(p1, 3));
+//
+//			uint64_t advanceP1RotQ4 = bb::quadrants(
+//				bb::quadrant(p1, 0),
+//				bb::quadrant(p1, 1),
+//				bb::quadrant(p1, 2),
+//				bb::rotate(bb::quadrant(p1, 3), r));
+//
+//			uint64_t packedRotationQ1 = bb::pack(advanceP0RotQ1, advanceP1RotQ1);
+//			uint64_t packedRotationQ2 = bb::pack(advanceP0RotQ2, advanceP1RotQ2);
+//			uint64_t packedRotationQ3 = bb::pack(advanceP0RotQ3, advanceP1RotQ3);
+//			uint64_t packedRotationQ4 = bb::pack(advanceP0RotQ4, advanceP1RotQ4);
+//
+//			moves.insert(packedRotationQ1);
+//			moves.insert(packedRotationQ2);
+//			moves.insert(packedRotationQ3);
+//			moves.insert(packedRotationQ4);
+//		}
+//
+//		moveMask ^= move;
+//	}
+//
+//	return moves;
+//}
