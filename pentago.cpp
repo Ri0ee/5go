@@ -135,7 +135,6 @@ void aiMove(State& state) {
     state.thinking = true;
     state.aiFinished = false;
     state.board = mm::bestMove(state.board, state.currentSide);
-    state.board.debugPrint();
     state.thinking = false;
     state.aiFinished = true;
     switchSide(state);
@@ -278,10 +277,15 @@ void gameWindow(State& state) {
 void gameStatsWindow(State& state) {
     ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("alpha cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::alphaCutoffs).c_str());
-    ImGui::Text("beta cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::betaCutoffs).c_str());
-    ImGui::Text("TT hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
-    ImGui::Text("Board eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(ev::eval(state.board.bitboard)).c_str());
+    ImGui::Text("static eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(ev::eval(state.board.bitboard)).c_str());
+    ImGui::Text("tt stored eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
+    ImGui::Text("tt hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
+    ImGui::Text("tt best moves checked: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttBestMovesChecked).c_str());
+    //ImGui::Text("alpha cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::alphaCutoffs).c_str());
+    //ImGui::Text("beta cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::betaCutoffs).c_str());
+    ImGui::Text("draw returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::drawReturns).c_str());
+    ImGui::Text("win returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::winReturns).c_str());
+    ImGui::Text("loss returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::lossReturns).c_str());
 
     if (ImGui::BeginListBox("##history", { 200, 450 })) {
         for (auto& action : state.history) {
@@ -308,9 +312,11 @@ int main(int, char**) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "5go", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 666, "5go", NULL, NULL);
     if (window == NULL)
         return 1;
+
+    glfwSetWindowPos(window, 1, 30);
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
@@ -329,12 +335,24 @@ int main(int, char**) {
     tt::init();
 
     //std::array<std::array<int, 6>, 6> board{};
-    //board[0] = { 1, 2, 2, 1, 1, 1 };
-    //board[1] = { 2, 1, 2, 1, 2, 2 };
-    //board[2] = { 1, 1, 1, 2, 2, 1 };
-    //board[3] = { 1, 1, 2, 2, 2, 2 };
-    //board[4] = { 2, 1, 2, 1, 1, 2 };
-    //board[5] = { 2, 1, 1, 2, 2, 1 };
+    //board[0] = { 0, 0, 0, 0, 0, 0 };
+    //board[1] = { 0, 1, 0, 0, 2, 0 };
+    //board[2] = { 0, 0, 0, 0, 0, 0 };
+    //board[3] = { 0, 0, 0, 0, 0, 0 };
+    //board[4] = { 0, 0, 0, 0, 1, 0 };
+    //board[5] = { 0, 0, 0, 0, 0, 0 };
+
+    //Board brd;
+    //brd.fromArray(board);
+    //std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, ev::winner(brd.bitboard));
+
+    //auto moves = bb::advances(brd.bitboard);
+
+    //for (auto move : moves) {
+    //    Board moveBoard(move);
+    //    moveBoard.debugPrint();
+    //    std::cout << "\n";
+    //}
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
