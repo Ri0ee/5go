@@ -18,11 +18,11 @@ Board mm::bestMove(Board board, int p, uint8_t maxDepth) {
     int16_t worstScore = maxScore;
 
     auto moves = bb::advances(board.bitboard);
-    for (auto move : moves) {
-        auto entry = tt::get(move);
+    for (auto& move : moves) {
+        auto entry = tt::get(move.second);
 
         if (entry.score > bestScore) {
-            bestMove = move;
+            bestMove = move.second;
             bestScore = entry.score;
         }
 
@@ -30,13 +30,15 @@ Board mm::bestMove(Board board, int p, uint8_t maxDepth) {
             worstScore = entry.score;
         }
 
-        Board brd(move);
-        std::cout << std::format("move: {:20} score: {:3}\n", move, entry.score);
+#ifdef _DEBUG
+        Board brd(move.second);
+        std::cout << std::format("move: {:20} score: {:3}\n", move.second, entry.score);
         brd.debugPrint();
+#endif // _DEBUG
     }
 
+    std::cout << std::format("move: {:20}\nbest deep score:\t{:3}\nworst deep score:\t{:3}\n", bestMove, bestScore, worstScore);
     Board brd(bestMove);
-    std::cout << std::format("move: {:20}\n\tbest score:\t{:3}\n\tworst score:\t{:3}\n", bestMove, bestScore, worstScore);
     brd.debugPrint();
 
     return bestMove;
@@ -51,8 +53,8 @@ int16_t mm::negamax(uint64_t root, int16_t alpha, int16_t beta, uint8_t depthlef
     const auto p0 = bb::unpack(root, 0);
     const auto p1 = bb::unpack(root, 1);
 
-    const auto moveCnt = bb::count(root);
-    const auto winner = ev::winner(root);
+    const auto moveCnt = bb::count(p0, p1);
+    const auto winner = bb::winner(p0, p1);
     const auto currentPlayer = moveCnt % 2 + 1;
 
     if (winner != 0) {
@@ -70,7 +72,7 @@ int16_t mm::negamax(uint64_t root, int16_t alpha, int16_t beta, uint8_t depthlef
     }
     
     if (depthleft == 0)
-        return -ev::eval(root);
+        return -bb::eval(p0, p1);
 
     int16_t bestScore = minScore;
     uint64_t bestMove = 0;
@@ -88,22 +90,22 @@ int16_t mm::negamax(uint64_t root, int16_t alpha, int16_t beta, uint8_t depthlef
         if (alpha >= beta)
             return entry.score;
 
-        //if (entry.bestMove != 0) {
-        //    bestMove = entry.bestMove;
-        //    bestScore = -negamax(bestMove, -beta, -alpha, depthleft - 1);
+        if (entry.bestMove != 0) {
+            bestMove = entry.bestMove;
+            bestScore = -negamax(bestMove, -beta, -alpha, depthleft - 1);
 
-        //    stats::ttBestMovesChecked++;
-        //}
+            stats::ttBestMovesChecked++;
+        }
     }
 
     if (bestScore < beta) {
-        auto moves = bb::advances(root);
-        for (auto move : moves) {
-            auto score = -negamax(move, -beta, -std::max(alpha, bestScore), depthleft - 1);
+        auto moves = bb::advances(p0, p1);
+        for (auto& move : moves) {
+            auto score = -negamax(move.second, -beta, -std::max(alpha, bestScore), depthleft - 1);
 
             if (bestScore < score) {
                 bestScore = score;
-                bestMove = move;
+                bestMove = move.second;
 
                 if (bestScore >= beta) {
                     break;

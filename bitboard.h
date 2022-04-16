@@ -5,10 +5,17 @@
 #include <format>
 #include <array>
 #include <unordered_set>
+#include <set>
 #include <queue>
 #include <immintrin.h>
 
+#include "table.h"
+#include "stats.h"
+
 namespace bb {
+	typedef std::pair<int16_t, uint64_t> scoreAndMove;
+	typedef std::set<scoreAndMove, std::greater<scoreAndMove>> scoreAndMoveSet;
+
 	constexpr auto pow = [](uint64_t a, uint64_t b) {
 		uint64_t p = 1;
 		while (b) {
@@ -17,6 +24,14 @@ namespace bb {
 			a *= a;
 		}
 		return p;
+	};
+
+	constexpr auto qbit = [](int x, int y) -> int {
+		return 1 << (3 * x + y);
+	};
+
+	constexpr auto maskGen = [](int idx0, int idx1, int idx2, int idx3, int idx4) -> uint64_t {
+		return (uint64_t)0x1 << idx0 | (uint64_t)0x1 << idx1 | (uint64_t)0x1 << idx2 | (uint64_t)0x1 << idx3 | (uint64_t)0x1 << idx4;
 	};
 
 	static constexpr auto packTable = [] {
@@ -57,10 +72,6 @@ namespace bb {
 		return unpack;
 	} ();
 
-	constexpr auto qbit = [](int x, int y) -> int {
-		return 1 << (3 * x + y);
-	};
-
 	static constexpr auto rotationTable = [] {
 		std::array<std::array<uint16_t, 2>, 512> rotations{};
 
@@ -81,22 +92,58 @@ namespace bb {
 		return rotations;
 	} ();
 
-	uint64_t quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3);
-	uint16_t quadrant(uint64_t bitboard, int q);
-	uint16_t pack(uint16_t side0, uint16_t side1);
-	uint64_t pack(uint64_t side0, uint64_t side1);
-	uint16_t unpack(uint16_t state, int s);
-	uint64_t unpack(uint64_t bitboard, int s);
-	uint16_t rotate(uint16_t quadrant, int dir);
+	static constexpr uint64_t winMasks[32] = {
+		// horizontal
+		maskGen(0, 1, 2, 16, 17), maskGen(1, 2, 16, 17, 18),
+		maskGen(3, 4, 5, 19, 20), maskGen(4, 5, 19, 20, 21),
+		maskGen(6, 7, 8, 22, 23), maskGen(7, 8, 22, 23, 24),
+		maskGen(32, 33, 34, 48, 49), maskGen(33, 34, 48, 49, 50),
+		maskGen(35, 36, 37, 51, 52), maskGen(36, 37, 51, 52, 53),
+		maskGen(38, 39, 40, 54, 55), maskGen(39, 40, 54, 55, 56),
+
+		// vertical
+		maskGen(0, 3, 6, 32, 35), maskGen(3, 6, 32, 35, 38),
+		maskGen(1, 4, 7, 33, 36), maskGen(4, 7, 33, 36, 39),
+		maskGen(2, 5, 8, 34, 37), maskGen(5, 8, 34, 37, 40),
+		maskGen(16, 19, 22, 48, 51), maskGen(19, 22, 48, 51, 54),
+		maskGen(17, 20, 23, 49, 52), maskGen(20, 23, 49, 52, 55),
+		maskGen(18, 21, 24, 50, 53), maskGen(21, 24, 50, 53, 56),
+
+		// diagonal
+		maskGen(0, 4, 8, 48, 52), maskGen(4, 8, 48, 52, 56), // main diagonal
+		maskGen(0, 5, 22, 49, 53), // top diagonal
+		maskGen(3, 7, 34, 51, 55), // bottom diagonal
+
+		// counter-diagonal
+		maskGen(18, 20, 22, 34, 36), maskGen(20, 22, 34, 36, 38), // main diagonal
+		maskGen(8, 17, 19, 33, 35), // top diagonal
+		maskGen(21, 23, 37, 39, 48), // bottom diagonal
+	};
+
+	static constexpr int16_t scoreDistribution[6] = {
+		0, 1, 3, 9, 27, 127
+	};
+
+	inline uint64_t quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3);
+	inline uint16_t quadrant(uint64_t bitboard, int q);
+	inline uint16_t pack(uint16_t p0, uint16_t p1);
+	inline uint64_t pack(uint64_t p0, uint64_t p1);
+	inline uint16_t unpack(uint16_t packedQuadrant, int s);
+	inline uint64_t unpack(uint64_t packedBitboard, int s);
+	inline uint16_t rotate(uint16_t quadrant, int dir);
 	
 	uint64_t flipSides(uint64_t bitboard);
+	inline uint64_t flipSides(uint64_t p0, uint64_t p1);
 
 	uint8_t count(uint64_t bitboard);
-	uint8_t count(uint64_t p0, uint64_t p1);
+	inline uint8_t count(uint64_t p0, uint64_t p1);
 
-	std::priority_queue<std::pair<int16_t, uint64_t>> advances(uint64_t packedBitboard);
-	std::priority_queue<std::pair<int16_t, uint64_t>> advances(uint64_t p0, uint64_t p1);
+	scoreAndMoveSet advances(uint64_t packedBitboard);
+	inline scoreAndMoveSet advances(uint64_t p0, uint64_t p1);
 
-	//std::unordered_set<uint64_t> advances(uint64_t packedBitboard);
-	//std::unordered_set<uint64_t> advances(uint64_t p0, uint64_t p1);
+	int16_t eval(uint64_t packedBitboard);
+	inline int16_t eval(uint64_t p0, uint64_t p1);
+
+	int winner(uint64_t packedBitboard);
+	inline int winner(uint64_t p0, uint64_t p1);
 }

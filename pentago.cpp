@@ -11,7 +11,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include "eval.h"
 #include "board.h"
 #include "minimax.h"
 #include "table.h"
@@ -277,24 +276,25 @@ void gameWindow(State& state) {
 void gameStatsWindow(State& state) {
     ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("static eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(ev::eval(state.board.bitboard)).c_str());
-    ImGui::Text("tt stored eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
-    ImGui::Text("tt hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
-    ImGui::Text("tt best moves checked: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttBestMovesChecked).c_str());
+    ImGui::Text("static eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(bb::eval(state.board.bitboard)).c_str());
+    ImGui::Text("  deep eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
+    ImGui::Text("    tt hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
+    ImGui::Text("  draw rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::drawReturns).c_str());
+    ImGui::Text("   win rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::winReturns).c_str());
+    ImGui::Text("  loss rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::lossReturns).c_str());
+    //ImGui::Text("tt best moves checked: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttBestMovesChecked).c_str());
     //ImGui::Text("alpha cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::alphaCutoffs).c_str());
     //ImGui::Text("beta cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::betaCutoffs).c_str());
-    ImGui::Text("draw returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::drawReturns).c_str());
-    ImGui::Text("win returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::winReturns).c_str());
-    ImGui::Text("loss returns: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::lossReturns).c_str());
 
     if (ImGui::BeginListBox("##history", { 200, 450 })) {
         for (auto& action : state.history) {
             ImGui::BulletText(action.desc.c_str());
         }
 
-        if (state.winner != 0) {
-            std::string text = std::format("{} has won", state.winner == 1 ? "blue" : "red");
-            ImGui::BulletText(text.c_str());
+        switch (state.winner) {
+        case 1: ImGui::BulletText("blue has won"); break;
+        case 2: ImGui::BulletText("red has won"); break;
+        case 3: ImGui::BulletText("draw"); break;
         }
 
         ImGui::EndListBox();
@@ -336,20 +336,21 @@ int main(int, char**) {
 
     //std::array<std::array<int, 6>, 6> board{};
     //board[0] = { 0, 0, 0, 0, 0, 0 };
-    //board[1] = { 0, 1, 0, 0, 2, 0 };
-    //board[2] = { 0, 0, 0, 0, 0, 0 };
-    //board[3] = { 0, 0, 0, 0, 0, 0 };
-    //board[4] = { 0, 0, 0, 0, 1, 0 };
-    //board[5] = { 0, 0, 0, 0, 0, 0 };
+    //board[1] = { 0, 0, 1, 0, 0, 0 };
+    //board[2] = { 0, 0, 1, 0, 0, 0 };
+    //board[3] = { 0, 0, 1, 0, 0, 0 };
+    //board[4] = { 0, 0, 1, 0, 0, 0 };
+    //board[5] = { 0, 0, 1, 0, 0, 0 };
 
     //Board brd;
     //brd.fromArray(board);
-    //std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, ev::winner(brd.bitboard));
+    //std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, bb::winner(brd.bitboard));
 
     //auto moves = bb::advances(brd.bitboard);
+    //for (auto& move : moves) {
+    //    Board moveBoard(move.second);
 
-    //for (auto move : moves) {
-    //    Board moveBoard(move);
+    //    std::cout << "score: " << move.first << "\n";
     //    moveBoard.debugPrint();
     //    std::cout << "\n";
     //}

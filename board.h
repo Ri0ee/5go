@@ -6,7 +6,6 @@
 #include <array>
 #include <unordered_set>
 
-#include "eval.h"
 #include "bitboard.h"
 
 struct Board {
@@ -64,10 +63,6 @@ struct Board {
 		bitboard = bb::quadrants(q[0], q[1], q[2], q[3]);
 	}
 
-	inline std::unordered_set<uint64_t> advances() const {
-		return bb::advances(bitboard);
-	}
-
 	inline void rotate(int qidx, int dir) {
 		uint64_t p0 = bb::unpack(bitboard, 0);
 		uint64_t p1 = bb::unpack(bitboard, 1);
@@ -97,11 +92,11 @@ struct Board {
 	}
 
 	bool stale() {
-		return __popcnt64(bb::unpack(bitboard, 0)) + __popcnt64(bb::unpack(bitboard, 1)) == 36;
+		return bb::count(bitboard) == 36;
 	}
 
 	int winner() {
-		return ev::winner(bitboard);
+		return bb::winner(bitboard);
 	}
 
 	void debugPrint(uint64_t packedBitboard) {
