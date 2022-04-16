@@ -94,6 +94,9 @@ namespace bb {
 	uint8_t count(uint64_t bitboard);
 	uint8_t count(uint64_t p0, uint64_t p1);
 
-	std::unordered_set<uint64_t> advances(uint64_t packedBitboard);
-	std::unordered_set<uint64_t> advances(uint64_t p0, uint64_t p1);
+	std::priority_queue<std::pair<int16_t, uint64_t>> advances(uint64_t packedBitboard);
+	std::priority_queue<std::pair<int16_t, uint64_t>> advances(uint64_t p0, uint64_t p1);
+
+	//std::unordered_set<uint64_t> advances(uint64_t packedBitboard);
+	//std::unordered_set<uint64_t> advances(uint64_t p0, uint64_t p1);
 }

@@ -1,7 +1,5 @@
 #include "eval.h"
 
-static int ttHits = 0;
-
 int16_t ev::eval(uint64_t packedBitboard) {
     return ev::eval(bb::unpack(packedBitboard, 0), bb::unpack(packedBitboard, 1));
 }
@@ -24,9 +22,8 @@ int16_t ev::eval(uint64_t p0, uint64_t p1) {
             score -= ev::scoreDistribution[__popcnt64(p1streaks)];
     }
     
-    return score;
-    //const auto moves = bb::count(p0, p1);
-    //return (moves % 2 == 0 ? score : -score);
+    const auto moves = bb::count(p0, p1);
+    return (moves % 2 == 0 ? -score : score);
 }
 
 int ev::winner(uint64_t p0, uint64_t p1) {
