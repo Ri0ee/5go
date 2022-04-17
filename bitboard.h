@@ -4,9 +4,7 @@
 #include <iostream>
 #include <format>
 #include <array>
-#include <unordered_set>
 #include <set>
-#include <queue>
 #include <immintrin.h>
 
 #include "table.h"
@@ -120,7 +118,7 @@ namespace bb {
 	};
 
 	static constexpr int16_t scoreDistribution[6] = {
-		0, 1, 3, 9, 27, 127
+		0, 1, 3, 9, 27, 81
 	};
 
 	inline uint64_t quadrants(uint16_t q0, uint16_t q1, uint16_t q2, uint16_t q3);

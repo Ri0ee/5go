@@ -334,6 +334,14 @@ void test() {
         std::cout << "score: " << staticEval << "\n";
         moveBoard.debugPrint(); std::cout << "\n";
     }
+
+    auto moves = bb::advances(brd.bitboard);
+    for (auto rit = moves.rbegin(); rit != moves.rend(); ++rit) {
+        auto& [staticEval, move] = *rit;
+        Board moveBoard(move);
+        std::cout << "score: " << staticEval << "\n";
+        moveBoard.debugPrint(); std::cout << "\n";
+    }
 }
 
 int main(int, char**) {
@@ -364,6 +372,8 @@ int main(int, char**) {
 
     static State state;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+    //test();
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
