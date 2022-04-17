@@ -44,6 +44,9 @@ static void glfw_error_callback(int error, const char* description) {
 }
 
 void resetGameState(State& state) {
+    tt::reset();
+    stats::stats.clear();
+
     state.showMenuWindow = true;
     state.showGameWindow = false;
 
@@ -82,6 +85,7 @@ void menuWindow(State& state) {
         if (state.ai) {
             if (ImGui::Button("Play first")) {
                 resetGameState(state);
+                tt::init();
                 state.side = 1;
                 state.currentSide = 1;
                 state.showGameWindow = true;
@@ -89,6 +93,7 @@ void menuWindow(State& state) {
 
             if (ImGui::Button("Play second")) {
                 resetGameState(state);
+                tt::init();
                 state.side = 2;
                 state.currentSide = 1;
                 state.showGameWindow = true;
@@ -104,14 +109,16 @@ void menuWindow(State& state) {
         }
     }
     else {
-        if (state.winner == 0 || state.stale) {
-            if (ImGui::Button("Concede")) {
-                resetGameState(state);
+        if (!state.thinking) {
+            if (state.winner == 0 || state.stale) {
+                if (ImGui::Button("Concede")) {
+                    resetGameState(state);
+                }
             }
-        }
-        else {
-            if (ImGui::Button("Reset")) {
-                resetGameState(state);
+            else {
+                if (ImGui::Button("Reset")) {
+                    resetGameState(state);
+                }
             }
         }
     }
@@ -276,15 +283,21 @@ void gameWindow(State& state) {
 void gameStatsWindow(State& state) {
     ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("static eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(bb::eval(state.board.bitboard)).c_str());
-    ImGui::Text("  deep eval: "); ImGui::SameLine(); ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
-    ImGui::Text("    tt hits: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttHits).c_str());
-    ImGui::Text("  draw rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::drawReturns).c_str());
-    ImGui::Text("   win rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::winReturns).c_str());
-    ImGui::Text("  loss rets: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::lossReturns).c_str());
-    //ImGui::Text("tt best moves checked: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::ttBestMovesChecked).c_str());
-    //ImGui::Text("alpha cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::alphaCutoffs).c_str());
-    //ImGui::Text("beta cutofs: "); ImGui::SameLine(); ImGui::Text(std::to_string(stats::betaCutoffs).c_str());
+    ImGui::Text("static evaluation"); 
+    ImGui::SameLine(150); 
+    ImGui::Text(std::to_string(bb::eval(state.board.bitboard)).c_str());
+
+    if (tt::valid()) {
+        ImGui::Text("deep evaluation"); 
+        ImGui::SameLine(150); 
+        ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
+    }
+
+    for (const auto& [stat, value] : stats::stats) {
+        ImGui::Text(stat.c_str());
+        ImGui::SameLine(150);
+        ImGui::Text(std::to_string(value).c_str());
+    }
 
     if (ImGui::BeginListBox("##history", { 200, 450 })) {
         for (auto& action : state.history) {
@@ -301,6 +314,26 @@ void gameStatsWindow(State& state) {
     }
 
     ImGui::End();
+}
+
+void test() {
+    std::array<std::array<int, 6>, 6> board{};
+    board[0] = { 0, 0, 0, 0, 0, 0 };
+    board[1] = { 0, 0, 1, 0, 0, 0 };
+    board[2] = { 0, 0, 1, 0, 0, 0 };
+    board[3] = { 0, 0, 1, 0, 0, 0 };
+    board[4] = { 0, 0, 1, 0, 0, 0 };
+    board[5] = { 0, 0, 1, 0, 0, 0 };
+
+    Board brd;
+    brd.fromArray(board);
+    std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, bb::winner(brd.bitboard));
+
+    for (const auto& [staticEval, move] : bb::advances(brd.bitboard)) {
+        Board moveBoard(move);
+        std::cout << "score: " << staticEval << "\n";
+        moveBoard.debugPrint(); std::cout << "\n";
+    }
 }
 
 int main(int, char**) {
@@ -332,29 +365,6 @@ int main(int, char**) {
     static State state;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    tt::init();
-
-    //std::array<std::array<int, 6>, 6> board{};
-    //board[0] = { 0, 0, 0, 0, 0, 0 };
-    //board[1] = { 0, 0, 1, 0, 0, 0 };
-    //board[2] = { 0, 0, 1, 0, 0, 0 };
-    //board[3] = { 0, 0, 1, 0, 0, 0 };
-    //board[4] = { 0, 0, 1, 0, 0, 0 };
-    //board[5] = { 0, 0, 1, 0, 0, 0 };
-
-    //Board brd;
-    //brd.fromArray(board);
-    //std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, bb::winner(brd.bitboard));
-
-    //auto moves = bb::advances(brd.bitboard);
-    //for (auto& move : moves) {
-    //    Board moveBoard(move.second);
-
-    //    std::cout << "score: " << move.first << "\n";
-    //    moveBoard.debugPrint();
-    //    std::cout << "\n";
-    //}
-
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -367,8 +377,8 @@ int main(int, char**) {
         }
 
         if (state.showGameWindow) {
-            gameStatsWindow(state);
             gameWindow(state);
+            gameStatsWindow(state);
         }
 
         // Rendering

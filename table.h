@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cinttypes>
 #include <utility>
 
@@ -9,11 +10,23 @@ namespace tt {
 		uint64_t bestMove;
 		int16_t score;
 		uint8_t depth;
-		uint8_t type;
+
+		enum class Type : uint8_t {
+			undefined = 0,
+			exact = 1,
+			alphaBound = 2,
+			betaBound = 3
+		} type;
 	};
 
+	static constexpr int tableSize = 27;
+	static constexpr int keyMask = (1 << tableSize) - 1;
+	extern tt::Entry* table;
+
 	void init();
-	void set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth, uint8_t type);
+	void reset();
+	bool valid();
+	void set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth, Entry::Type type);
 	Entry& get(uint64_t bitboard);
 	uint64_t hash(uint64_t bitboard);
 }

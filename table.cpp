@@ -1,19 +1,29 @@
 #include "table.h"
 
-static tt::Entry* table;
-
-static constexpr int tableSize = 27;
-static constexpr int keyMask = (1 << tableSize) - 1;
+tt::Entry* tt::table = nullptr;
 
 void tt::init() {
-	table = new Entry[1 << tableSize]();
+	tt::table = new Entry[1 << tt::tableSize]();
+
+	std::cout << "sizeof table entry: " << sizeof(tt::Entry) << "\n";
+	std::cout << "table size (bytes): " << ((1 << tt::tableSize) * sizeof(tt::Entry)) << "\n";
+	std::cout << "table at: " << tt::table << "\n";
 }
 
-void tt::set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth, uint8_t type) {
-	uint64_t h = tt::hash(bitboard);
-	auto& entry = table[h & keyMask];
+void tt::reset() {
+	delete[] tt::table;
+	tt::table = nullptr;
+}
 
-	entry.key = h;
+bool tt::valid() {
+	return tt::table != nullptr;
+}
+
+void tt::set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth, tt::Entry::Type type) {
+	uint64_t hash = tt::hash(bitboard);
+	auto& entry = tt::table[hash & tt::keyMask];
+
+	entry.key = hash;
 	entry.bestMove = bestMove;
 	entry.score = score;
 	entry.depth = depth;
@@ -21,7 +31,7 @@ void tt::set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth,
 }
 
 tt::Entry& tt::get(uint64_t bitboard) {
-	return table[hash(bitboard) & keyMask];
+	return tt::table[tt::hash(bitboard) & tt::keyMask];
 }
 
 uint64_t tt::hash(uint64_t bitboard) {

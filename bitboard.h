@@ -58,11 +58,10 @@ namespace bb {
 			uint16_t p0 = 0, p1 = 0;
 
 			for (int i = 0; i < 9; i++) {
-				auto c = vv % 3;
-				if (c == 1)
-					p0 += 1 << i;
-				else if (c == 2)
-					p1 += 1 << i;
+				switch (vv % 3) {
+				case 1: p0 += 1 << i; break;
+				case 2: p1 += 1 << i; break;
+				}
 				vv /= 3;
 			}
 

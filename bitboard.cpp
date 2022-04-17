@@ -55,8 +55,8 @@ bb::scoreAndMoveSet bb::advances(uint64_t p0, uint64_t p1) {
 
 	uint64_t moveMask = (p0 | p1) ^ 0x01ff01ff01ff01ff;
 	const uint64_t moveCnt = __popcnt64(moveMask);
-	const auto side0 = (moveCnt % 2 ? p1 : p0);
-	const auto side1 = (moveCnt % 2 ? p0 : p1);
+	const auto side0 = (moveCnt % 2) ? p1 : p0;
+	const auto side1 = (moveCnt % 2) ? p0 : p1;
 
 	for (int i = 0; i < moveCnt; i++) {
 		uint64_t move = (uint64_t)0x1 << _tzcnt_u64(moveMask);
