@@ -128,9 +128,6 @@ namespace bb {
 	inline uint16_t unpack(uint16_t packedQuadrant, int s);
 	inline uint64_t unpack(uint64_t packedBitboard, int s);
 	inline uint16_t rotate(uint16_t quadrant, int dir);
-	
-	uint64_t flipSides(uint64_t bitboard);
-	inline uint64_t flipSides(uint64_t p0, uint64_t p1);
 
 	uint8_t count(uint64_t bitboard);
 	inline uint8_t count(uint64_t p0, uint64_t p1);

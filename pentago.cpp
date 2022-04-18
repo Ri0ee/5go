@@ -118,7 +118,7 @@ void menuWindow(State& state) {
         }
     }
     else {
-        if (!state.thinking && !(state.ai0 && state.ai1)) {
+        if (!state.thinking) {
             if (state.winner == 0 || state.stale) {
                 if (ImGui::Button("Concede")) {
                     resetGameState(state);
@@ -144,6 +144,13 @@ void rotateButton(State& state, int qidx, int dir) {
 }
 
 void aiMove(State& state) {
+    state.winner = state.board.winner();
+    if (state.winner != 0) {
+        state.ai0 = false;
+        state.ai1 = false;
+        return;
+    }
+
     state.thinking = true;
     state.aiFinished = false;
     state.board = mm::bestMove(state.board, state.depth);
@@ -266,22 +273,24 @@ void gameWindow(State& state) {
         ImGui::EndChild();
     }
 
-    if (state.aiFinished) {
-        state.aiThread.join();
-        state.aiFinished = false;
-    }
+    if (state.ai0 || state.ai1) {
+        if (state.aiFinished) {
+            state.aiThread.join();
+            state.aiFinished = false;
+        }
 
-    if ((state.ai0 || state.ai1) && state.side != state.currentSide && !state.thinking && state.winner == 0) {
-        state.aiThread = std::thread([&]() {
-            aiMove(state);
-        });
-    }
+        if (state.side != state.currentSide && !state.thinking && state.winner == 0 && !state.stale) {
+            state.aiThread = std::thread([&]() {
+                aiMove(state);
+                });
+        }
 
-    if (state.thinking || (state.ai0 && state.ai1)) {
-        ImGui::SetNextWindowBgAlpha(0.35f);
-        ImGui::SetCursorPos(ImGui::GetWindowContentRegionMin());
-        ImGui::BeginChild(1, ImGui::GetItemRectSize(), false, 0);
-        ImGui::EndChild();
+        if (state.thinking) {
+            ImGui::SetNextWindowBgAlpha(0.35f);
+            ImGui::SetCursorPos(ImGui::GetWindowContentRegionMin());
+            ImGui::BeginChild(1, ImGui::GetItemRectSize(), false, 0);
+            ImGui::EndChild();
+        }
     }
 
     ImGui::End();

@@ -38,14 +38,6 @@ uint8_t bb::count(uint64_t p0, uint64_t p1) {
 	return (uint8_t)__popcnt64(p0 | p1);
 }
 
-uint64_t bb::flipSides(uint64_t packedBitboard) {
-	return bb::flipSides(bb::unpack(packedBitboard, 0), bb::unpack(packedBitboard, 1));
-}
-
-uint64_t bb::flipSides(uint64_t p0, uint64_t p1) {
-	return bb::pack(p1, p0);
-}
-
 uint16_t bb::rotate(uint16_t quadrant, int dir) {
 	return bb::rotationTable[quadrant][dir];
 }

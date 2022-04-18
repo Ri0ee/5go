@@ -7,10 +7,10 @@ Board mm::bestMove(Board board, uint8_t maxDepth) {
 
         auto t = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> ms = t - t1;
-        std::cout << std::format("depth: {} {}\n", depth, ms);
 
-        //if (ms > std::chrono::seconds{ 10 })
-            //break;
+#ifdef _DEBUG
+        std::cout << std::format("depth: {} {}\n", depth, ms);
+#endif // _DEBUG
     }
 
     return tt::get(board.bitboard).bestMove;
@@ -57,28 +57,13 @@ int16_t mm::negamax(uint64_t root, int16_t alpha, int16_t beta, uint8_t depthLef
     }
 
     if (bestScore < beta) {
-        if (player == 1) {
-            for (const auto& [static_eval, move] : bb::advances(p0, p1)) {
-                const int16_t score = -negamax(move, -beta, -std::max(alpha, bestScore), depthLeft - 1);
+        for (const auto& [static_eval, move] : bb::advances(p0, p1)) {
+            const int16_t score = -negamax(move, -beta, -std::max(alpha, bestScore), depthLeft - 1);
 
-                if (bestScore < score) {
-                    bestScore = score;
-                    bestMove = move;
-                    if (bestScore >= beta) break;
-                }
-            }
-        }
-        else {
-            auto moves = bb::advances(p0, p1);
-            for (auto rit = moves.rbegin(); rit != moves.rend(); ++rit) {
-                auto move = (*rit).second;
-                const int16_t score = -negamax(move, -beta, -std::max(alpha, bestScore), depthLeft - 1);
-
-                if (bestScore < score) {
-                    bestScore = score;
-                    bestMove = move;
-                    if (bestScore >= beta) break;
-                }
+            if (bestScore < score) {
+                bestScore = score;
+                bestMove = move;
+                if (bestScore >= beta) break;
             }
         }
     }
