@@ -9,8 +9,8 @@ Board mm::bestMove(Board board, uint8_t maxDepth) {
         std::chrono::duration<double, std::milli> ms = t - t1;
         std::cout << std::format("depth: {} {}\n", depth, ms);
 
-        if (ms > std::chrono::seconds{ 10 })
-            break;
+        //if (ms > std::chrono::seconds{ 10 })
+            //break;
     }
 
     return tt::get(board.bitboard).bestMove;

@@ -24,9 +24,11 @@ struct State {
     bool showMenuWindow = true;
     bool showGameWindow = false;
 
-    bool ai = false;
+    bool ai0 = false, ai1 = false;
     bool thinking = false;
     bool aiFinished = false;
+    int depth = 5;
+
     bool stale = false;
     bool rotate = false;
 
@@ -79,37 +81,44 @@ void menuWindow(State& state) {
         "A player is free to twist any of the game blocks, regardless of which game block the player placed the marble on.\n"
         "A winning row of five marbles can occur vertically, horizontally or diagonally, anywhere on the board and will span two or three game blocks.");
 
-    ImGui::Checkbox("AI", &state.ai);
+    ImGui::DragInt("depth", &state.depth, 0.5, 2, 36);
 
     if (state.side == 0) {
-        if (state.ai) {
-            if (ImGui::Button("Play first")) {
-                resetGameState(state);
+        ImGui::TextColored(ImColor(0, 127, 255, 255), "first player");
+        ImGui::SameLine(150);
+        ImGui::Checkbox("AI##firstPlayer", &state.ai0);
+
+        ImGui::TextColored(ImColor(220, 20, 60, 255), "second player");
+        ImGui::SameLine(150);
+        ImGui::Checkbox("AI##secondPlayer", &state.ai1);
+
+        if (ImGui::Button("Play")) {
+            resetGameState(state);
+
+            state.side = 1;
+
+            if (state.ai0 || state.ai1) {
                 tt::init();
-                state.side = 1;
-                state.currentSide = 1;
-                state.showGameWindow = true;
             }
 
-            if (ImGui::Button("Play second")) {
-                resetGameState(state);
-                tt::init();
+            if (state.ai0) {
                 state.side = 2;
-                state.currentSide = 1;
-                state.showGameWindow = true;
             }
-        }
-        else {
-            if (ImGui::Button("Play")) {
-                resetGameState(state);
+
+            if (state.ai1) {
                 state.side = 1;
-                state.currentSide = 1;
-                state.showGameWindow = true;
             }
+
+            if (state.ai0 && state.ai1) {
+                state.side = 3;
+            }
+
+            state.currentSide = 1;
+            state.showGameWindow = true;
         }
     }
     else {
-        if (!state.thinking) {
+        if (!state.thinking && !(state.ai0 && state.ai1)) {
             if (state.winner == 0 || state.stale) {
                 if (ImGui::Button("Concede")) {
                     resetGameState(state);
@@ -137,7 +146,7 @@ void rotateButton(State& state, int qidx, int dir) {
 void aiMove(State& state) {
     state.thinking = true;
     state.aiFinished = false;
-    state.board = mm::bestMove(state.board);
+    state.board = mm::bestMove(state.board, state.depth);
     state.thinking = false;
     state.aiFinished = true;
     check(state);
@@ -257,22 +266,22 @@ void gameWindow(State& state) {
         ImGui::EndChild();
     }
 
-    if (state.ai && state.side != state.currentSide && !state.thinking && state.winner == 0) {
+    if (state.aiFinished) {
+        state.aiThread.join();
+        state.aiFinished = false;
+    }
+
+    if ((state.ai0 || state.ai1) && state.side != state.currentSide && !state.thinking && state.winner == 0) {
         state.aiThread = std::thread([&]() {
             aiMove(state);
         });
     }
 
-    if (state.thinking) {
+    if (state.thinking || (state.ai0 && state.ai1)) {
         ImGui::SetNextWindowBgAlpha(0.35f);
         ImGui::SetCursorPos(ImGui::GetWindowContentRegionMin());
         ImGui::BeginChild(1, ImGui::GetItemRectSize(), false, 0);
         ImGui::EndChild();
-    }
-
-    if (state.aiFinished) {
-        state.aiThread.join();
-        state.aiFinished = false;
     }
 
     ImGui::End();
