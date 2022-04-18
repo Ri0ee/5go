@@ -5,9 +5,8 @@ tt::Entry* tt::table = nullptr;
 void tt::init() {
 	tt::table = new Entry[1 << tt::tableSize]();
 
-	std::cout << "sizeof table entry: " << sizeof(tt::Entry) << "\n";
-	std::cout << "table size (bytes): " << ((1 << tt::tableSize) * sizeof(tt::Entry)) << "\n";
-	std::cout << "table at: " << tt::table << "\n";
+	stats::stats["tt size (bytes)"] = ((1 << tt::tableSize) * sizeof(tt::Entry));
+	stats::stats["tt entry size"] = sizeof(tt::Entry);
 }
 
 void tt::reset() {
@@ -31,7 +30,15 @@ void tt::set(uint64_t bitboard, uint64_t bestMove, int16_t score, uint8_t depth,
 }
 
 tt::Entry& tt::get(uint64_t bitboard) {
-	return tt::table[tt::hash(bitboard) & tt::keyMask];
+	uint64_t hash = tt::hash(bitboard);
+	tt::Entry& entry = tt::table[hash & tt::keyMask];
+
+	if (entry.key != hash && entry.key != 0) {
+		entry.type = tt::Entry::Type::undefined;
+		stats::stats["tt collisions"]++;
+	}
+
+	return entry;
 }
 
 uint64_t tt::hash(uint64_t bitboard) {

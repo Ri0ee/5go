@@ -101,44 +101,10 @@ struct Board {
 
 	void debugPrint(uint64_t packedBitboard) {
 		std::cout << "----BOARD DUMP----\n";
-		//std::cout << "uint64_t (packed):\n";
 
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF00000000000000) >> 52);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF000000000000) >> 48);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF0000000000) >> 40);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF00000000) >> 32);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF000000) >> 24);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF0000) >> 16);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF00) >> 8);
-		//std::cout << std::format("{:08b}\n", (bitboard & 0xFF));
-
-		//std::cout << "uint64_t (unpacked p0):\n";
-		//uint64_t p0 = bb::unpack(bitboard, 0);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF00000000000000) >> 52);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF000000000000) >> 48);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF0000000000) >> 40);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF00000000) >> 32);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF000000) >> 24);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF0000) >> 16);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF00) >> 8);
-		//std::cout << std::format("{:08b}\n", (p0 & 0xFF));
-
-		//std::cout << "uint64_t (unpacked p1):\n";
-		//uint64_t p1 = bb::unpack(bitboard, 1);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF00000000000000) >> 52);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF000000000000) >> 48);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF0000000000) >> 40);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF00000000) >> 32);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF000000) >> 24);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF0000) >> 16);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF00) >> 8);
-		//std::cout << std::format("{:08b}\n", (p1 & 0xFF));
-
-		Board board;
-		board.bitboard = packedBitboard;
-		auto boarda = board.toArray();
+		Board board(packedBitboard);
 		std::cout << "normal view:\n";
-		for (auto row : boarda) {
+		for (auto row : board.toArray()) {
 			for (auto col : row)
 				std::cout << col << " ";
 			std::cout << '\n';

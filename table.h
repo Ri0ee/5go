@@ -4,6 +4,8 @@
 #include <cinttypes>
 #include <utility>
 
+#include "stats.h"
+
 namespace tt {
 	struct Entry {
 		uint64_t key;

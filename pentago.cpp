@@ -126,21 +126,18 @@ void menuWindow(State& state) {
     ImGui::End();
 }
 
-void postMove(State& state) {
-    switchSide(state);
-}
-
 void rotateButton(State& state, int qidx, int dir) {
     state.board.rotate(qidx, dir);
     state.rotate = false;
+    state.history.push_back({ std::format("R{}-{}", qidx, dir) });
     check(state);
-    postMove(state);
+    switchSide(state);
 }
 
 void aiMove(State& state) {
     state.thinking = true;
     state.aiFinished = false;
-    state.board = mm::bestMove(state.board, state.currentSide);
+    state.board = mm::bestMove(state.board);
     state.thinking = false;
     state.aiFinished = true;
     check(state);
@@ -184,7 +181,7 @@ void gameWindow(State& state) {
                     if (!state.stale && state.winner == 0) {
                         cell = state.currentSide;
                         state.board.fromArray(board);
-                        state.history.push_back({ std::format("M{}", marbleIdx) });
+                        state.history.push_back({ std::format("M{}", marbleIdx - 1) });
                         check(state);
                         state.rotate = true && !state.stale && state.winner == 0;
                     }
@@ -290,7 +287,7 @@ void gameStatsWindow(State& state) {
 
     if (tt::valid()) {
         ImGui::Text("deep evaluation"); 
-        ImGui::SameLine(150); 
+        ImGui::SameLine(150);
         ImGui::Text(std::to_string(tt::get(state.board.bitboard).score).c_str());
     }
 
@@ -300,7 +297,7 @@ void gameStatsWindow(State& state) {
         ImGui::Text(std::to_string(value).c_str());
     }
 
-    if (ImGui::BeginListBox("##history", { 200, 450 })) {
+    if (ImGui::BeginListBox("##history", { 250, 250 })) {
         for (auto& action : state.history) {
             ImGui::BulletText(action.desc.c_str());
         }
@@ -315,34 +312,6 @@ void gameStatsWindow(State& state) {
     }
 
     ImGui::End();
-}
-
-void test() {
-    std::array<std::array<int, 6>, 6> board{};
-    board[0] = { 0, 0, 0, 0, 0, 0 };
-    board[1] = { 0, 0, 1, 0, 0, 0 };
-    board[2] = { 0, 0, 1, 0, 0, 0 };
-    board[3] = { 0, 0, 1, 0, 0, 0 };
-    board[4] = { 0, 0, 1, 0, 0, 0 };
-    board[5] = { 0, 0, 1, 0, 0, 0 };
-
-    Board brd;
-    brd.fromArray(board);
-    std::cout << std::format("board: {:020} winner: {}\n", brd.bitboard, bb::winner(brd.bitboard));
-
-    for (const auto& [staticEval, move] : bb::advances(brd.bitboard)) {
-        Board moveBoard(move);
-        std::cout << "score: " << staticEval << "\n";
-        moveBoard.debugPrint(); std::cout << "\n";
-    }
-
-    auto moves = bb::advances(brd.bitboard);
-    for (auto rit = moves.rbegin(); rit != moves.rend(); ++rit) {
-        auto& [staticEval, move] = *rit;
-        Board moveBoard(move);
-        std::cout << "score: " << staticEval << "\n";
-        moveBoard.debugPrint(); std::cout << "\n";
-    }
 }
 
 int main(int, char**) {
@@ -373,8 +342,6 @@ int main(int, char**) {
 
     static State state;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-    //test();
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
