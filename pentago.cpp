@@ -143,6 +143,7 @@ void aiMove(State& state) {
     state.board = mm::bestMove(state.board, state.currentSide);
     state.thinking = false;
     state.aiFinished = true;
+    check(state);
     switchSide(state);
 }
 
